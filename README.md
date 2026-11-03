@@ -48,10 +48,9 @@ app/
 
 ## 开始使用
 
-1. 克隆项目
-2. 将题库 JSON 文件放到 `app/src/main/assets/q.json`
-3. 使用 Android Studio 打开项目
-4. 运行应用
+1. 克隆项目(题库 `q.json` 已包含在仓库中)
+2. 使用 Android Studio 打开项目
+3. 运行应用(或 `./gradlew assembleDebug`)
 
 ## 数据模型
 
