@@ -36,7 +36,7 @@ app/src/main/kotlin/com/example/driveprep/
 │   └── theme/             # 主题配置
 └── di/                    # Hilt 依赖注入
 
-app/src/test/              # 单元测试(30 例)
+app/src/test/              # 单元测试(37 例)
 ```
 
 ## 功能特性
@@ -44,10 +44,10 @@ app/src/test/              # 单元测试(30 例)
 - ✅ 科目一 / 科目四双题库(共 4300+ 题,离线可用)
 - ✅ 模拟考试(科一 100 题·45 分钟 / 科四 50 题·30 分钟),倒计时自动交卷
 - ✅ 随机练习,题量与考试标准一致
-- ✅ 图片题加载,多选题乱序不影响判分
+- ✅ 图片题加载,多选题作答顺序不影响判分
 - ✅ 错题本:按错误次数排序、专项练习、标记掌握
 - ✅ 练习报告:练习次数、平均分、通过率、高频错题、历史记录
-- ✅ 考试进度自动保存与恢复(按科目+模式独立),支持不保存退出与一键重考
+- ✅ 考试进度自动保存与恢复(模拟/练习按科目+模式独立,错题复习独立),支持不保存退出与一键重考
 - ✅ 夜间模式三态(跟随系统/白天/夜间),状态栏联动
 - ✅ 题目字号三档可调(大/中/小)
 - ✅ 答题反馈设置:立即显示对错、答题技巧、答案解析
@@ -61,6 +61,16 @@ app/src/test/              # 单元测试(30 例)
 | 随机练习(夜间模式) | 错题本 | 练习报告 |
 |---|---|---|
 | ![随机练习](docs/screenshots/practice_dark.png) | ![错题本](docs/screenshots/wrong_book.png) | ![练习报告](docs/screenshots/statistics.png) |
+
+## 下载安装
+
+无需自行编译,直接从 [GitHub Releases](https://github.com/TacticalTwerking/DrivePrep/releases/latest) 下载最新 APK:
+
+| 版本 | 下载 | 说明 |
+|---|---|---|
+| v1.0 | [DrivePrep-v1.0.apk](https://github.com/TacticalTwerking/DrivePrep/releases/download/v1.0/DrivePrep-v1.0.apk) | 科目一/科目四双题库、模拟考试、错题本、练习报告分科目 |
+
+安装时如提示"未知来源应用",在系统弹窗中允许安装即可。
 
 ## 开始使用
 
