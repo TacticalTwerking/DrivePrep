@@ -1,6 +1,6 @@
-# DrivePrep - 驾考科目一练习
+# DrivePrep - 驾考模拟练习
 
-基于 Android Jetpack Compose 的驾考科目一练习应用
+基于 Android Jetpack Compose 的驾考理论考试练习应用,覆盖科目一与科目四双题库,完全离线可用。
 
 ## 技术栈
 
@@ -76,4 +76,4 @@ app/
 
 ## License
 
-MIT
+本项目基于 [MIT](LICENSE) 协议开源。
