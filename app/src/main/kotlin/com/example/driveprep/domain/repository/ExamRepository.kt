@@ -18,7 +18,12 @@ interface ExamRepository {
     suspend fun restoreExamProgress(mode: String): Result<ExamProgressData?>
     /** 丢弃指定 key 的进度(不保存退出) */
     suspend fun clearExamProgress(progressKey: String)
-    suspend fun saveExamRecord(score: ExamScore, mode: ExamMode, progressKey: String): Result<Unit>
+    suspend fun saveExamRecord(
+        score: ExamScore,
+        mode: ExamMode,
+        progressKey: String,
+        subject: Int
+    ): Result<Unit>
     suspend fun recordWrongAnswer(questionId: String, userAnswer: Set<String>)
     suspend fun markWrongQuestionMastered(questionId: String)
     fun getExamRecords(): Flow<List<ExamRecordData>>

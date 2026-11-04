@@ -19,6 +19,8 @@ data class ExamProgressData(
 data class ExamRecordData(
     val id: Long,
     val mode: String,
+    /** 1 = 科目一,4 = 科目四;v6 之前的存量记录回填为科目一 */
+    val subject: Int,
     val score: Int,
     val correct: Int,
     val total: Int,

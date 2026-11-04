@@ -32,6 +32,7 @@ object DatabaseModule {
         )
             .addMigrations(MIGRATION_3_4)
             .addMigrations(MIGRATION_4_5)
+            .addMigrations(MIGRATION_5_6)
             .build()
     }
 
@@ -64,6 +65,18 @@ object DatabaseModule {
                     END
                 WHERE id = 'current_exam'
                 """.trimIndent()
+            )
+        }
+    }
+
+    /**
+     * v6 成绩记录增加科目列。存量行无法判别科目,
+     * 统一回填为科目一(科目四支持上线前的记录本就只有科目一)。
+     */
+    private val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                "ALTER TABLE exam_records ADD COLUMN subject INTEGER NOT NULL DEFAULT 1"
             )
         }
     }

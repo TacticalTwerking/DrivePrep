@@ -20,6 +20,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -63,6 +66,30 @@ fun StatisticsScreen(
             contentPadding = PaddingValues(vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            item {
+                // 科目筛选:指标与记录列表同步过滤,避免科一/科四混算
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    val options = listOf<Int?>(null, 1, 4)
+                    val labels = listOf("全部", "科目一", "科目四")
+                    options.forEachIndexed { index, subject ->
+                        SegmentedButton(
+                            selected = state.selectedSubject == subject,
+                            onClick = { viewModel.selectSubject(subject) },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = options.size
+                            ),
+                            colors = SegmentedButtonDefaults.colors(
+                                activeContainerColor = MaterialTheme.colorScheme.primary,
+                                activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                                activeBorderColor = MaterialTheme.colorScheme.primary
+                            )
+                        ) {
+                            Text(labels[index])
+                        }
+                    }
+                }
+            }
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -228,7 +255,7 @@ private fun RecordCard(record: ExamRecordData) {
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "${modeLabel(record.mode)} · ${record.score} 分",
+                    text = "${subjectLabel(record.subject)} · ${modeLabel(record.mode)} · ${record.score} 分",
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
@@ -254,6 +281,11 @@ private fun RecordCard(record: ExamRecordData) {
             )
         }
     }
+}
+
+private fun subjectLabel(subject: Int): String = when (subject) {
+    4 -> "科目四"
+    else -> "科目一"
 }
 
 private fun modeLabel(mode: String): String = when (mode) {

@@ -171,7 +171,12 @@ class ExamRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun saveExamRecord(score: ExamScore, mode: ExamMode, progressKey: String): Result<Unit> {
+    override suspend fun saveExamRecord(
+        score: ExamScore,
+        mode: ExamMode,
+        progressKey: String,
+        subject: Int
+    ): Result<Unit> {
         return try {
             val modeString = when (mode) {
                 is ExamMode.MockExam -> "mock_exam"
@@ -185,6 +190,7 @@ class ExamRepositoryImpl @Inject constructor(
 
             val entity = ExamRecordEntity(
                 mode = modeString,
+                subject = subject,
                 score = score.score,
                 correct = score.correct,
                 total = score.total,
@@ -236,6 +242,7 @@ class ExamRepositoryImpl @Inject constructor(
                 ExamRecordData(
                     id = entity.id,
                     mode = entity.mode,
+                    subject = entity.subject,
                     score = entity.score,
                     correct = entity.correct,
                     total = entity.total,

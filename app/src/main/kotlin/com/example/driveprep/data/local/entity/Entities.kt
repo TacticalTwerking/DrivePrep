@@ -1,5 +1,6 @@
 package com.example.driveprep.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.SerialName
@@ -47,6 +48,8 @@ data class ExamProgressEntity(
 data class ExamRecordEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val mode: String,
+    /** 1 = 科目一,4 = 科目四;v6 之前的存量记录无法判别,统一回填为科目一 */
+    @ColumnInfo(defaultValue = "1") val subject: Int = 1,
     val score: Int,
     val correct: Int,
     val total: Int,

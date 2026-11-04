@@ -380,7 +380,8 @@ class ExamViewModel @Inject constructor(
                 repository.saveExamRecord(
                     score,
                     state.mode,
-                    progressKey(currentModeKey, state.subject)
+                    progressKey(currentModeKey, state.subject),
+                    state.subject
                 )
             }
             // 未作答的题只扣分,不计入错题本
