@@ -64,7 +64,7 @@ app/src/test/              # 单元测试(37 例)
 
 ## 下载安装
 
-无需自行编译,直接从 [GitHub Releases](https://github.com/TacticalTwerking/DrivePrep/releases/latest) 下载最新 APK:
+从 [GitHub Releases](https://github.com/TacticalTwerking/DrivePrep/releases/latest) 下载最新 APK:
 
 | 版本 | 下载 | 说明 |
 |---|---|---|
