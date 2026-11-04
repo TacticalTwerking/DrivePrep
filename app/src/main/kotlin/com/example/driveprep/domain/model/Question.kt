@@ -15,7 +15,9 @@ data class Question(
     val remark: String?,
     val videoExplain: VideoExplain?,
     val isNewRule: Boolean,
-    val isErrorProne: Boolean
+    val isErrorProne: Boolean,
+    /** 1 = 科目一,4 = 科目四 */
+    val subject: Int = 1
 )
 
 enum class QuestionType {

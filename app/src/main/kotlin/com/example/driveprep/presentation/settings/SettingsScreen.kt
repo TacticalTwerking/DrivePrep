@@ -12,12 +12,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -27,6 +30,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.driveprep.domain.model.DarkMode
+import com.example.driveprep.domain.model.QuestionFontSize
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -57,6 +62,72 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
+                text = "外观",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "选择应用的深色模式；“跟随系统”时与系统显示设置保持一致。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                val modes = listOf(
+                    DarkMode.SYSTEM to "跟随系统",
+                    DarkMode.LIGHT to "白天模式",
+                    DarkMode.DARK to "夜间模式"
+                )
+                modes.forEachIndexed { index, (mode, label) ->
+                    SegmentedButton(
+                        selected = settings.darkMode == mode,
+                        onClick = { viewModel.setDarkMode(mode) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = modes.size
+                        ),
+                        // 选中态用主题浅蓝主色,不用默认的绿色 secondaryContainer
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                            activeBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+
+            Text(
+                text = "题目字号",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                val sizes = listOf(
+                    QuestionFontSize.LARGE to "大",
+                    QuestionFontSize.MEDIUM to "中",
+                    QuestionFontSize.SMALL to "小"
+                )
+                sizes.forEachIndexed { index, (size, label) ->
+                    SegmentedButton(
+                        selected = settings.questionFontSize == size,
+                        onClick = { viewModel.setQuestionFontSize(size) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = sizes.size
+                        ),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                            activeBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+
+            Text(
                 text = "答题反馈",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
@@ -73,14 +144,12 @@ fun SettingsScreen(
                 checked = settings.showImmediateFeedback,
                 onCheckedChange = viewModel::setImmediateFeedback
             )
-            HorizontalDivider()
             SettingSwitchRow(
                 title = "显示答题技巧",
                 description = "揭晓答案后显示题库中的答题技巧。",
                 checked = settings.showAnswerSkill,
                 onCheckedChange = viewModel::setShowAnswerSkill
             )
-            HorizontalDivider()
             SettingSwitchRow(
                 title = "显示答案解析",
                 description = "揭晓答案后显示详细解析和法规说明。",
@@ -117,6 +186,15 @@ private fun SettingSwitchRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        // 未选中:蓝滑块 + 灰轨道线框;选中:默认白滑块 + 蓝轨道
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                uncheckedThumbColor = MaterialTheme.colorScheme.primary,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                uncheckedBorderColor = MaterialTheme.colorScheme.outline
+            )
+        )
     }
 }

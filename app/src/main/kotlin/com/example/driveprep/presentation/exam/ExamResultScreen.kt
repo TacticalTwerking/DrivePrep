@@ -4,9 +4,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -17,6 +14,7 @@ import com.example.driveprep.domain.model.ExamScore
 @Composable
 fun ExamResultScreen(
     score: ExamScore,
+    hasReviewableWrong: Boolean,
     onReviewWrongQuestions: () -> Unit,
     onRetry: () -> Unit,
     onExit: () -> Unit,
@@ -32,15 +30,7 @@ fun ExamResultScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
-        Spacer(Modifier.height(32.dp))
-
-        // Result icon
-        Icon(
-            imageVector = if (score.passed) Icons.Default.CheckCircle else Icons.Default.Close,
-            contentDescription = null,
-            modifier = Modifier.size(80.dp),
-            tint = if (score.passed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-        )
+        Spacer(Modifier.height(48.dp))
 
         // Pass/Fail text
         Text(
@@ -64,22 +54,35 @@ fun ExamResultScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "${score.score}",
-                    style = MaterialTheme.typography.displayLarge,
-                    color = MaterialTheme.colorScheme.primary
-                )
-
-                Text(
-                    text = "分",
-                    style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // 分数:通过用主色,未通过用红色强调
+                Row(verticalAlignment = Alignment.Bottom) {
+                    Text(
+                        text = "${score.score}",
+                        style = MaterialTheme.typography.displayLarge,
+                        color = if (score.passed) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.error
+                        }
+                    )
+                    Text(
+                        text = "分",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 12.dp)
+                    )
+                }
 
                 HorizontalDivider()
 
                 ScoreDetailRow(label = "正确题数", value = "${score.correct}/${score.total}")
-                ScoreDetailRow(label = "错误题数", value = "${score.wrongQuestions.size}")
+                // 答错与未答分开:未答题只扣分,不计入错题本
+                val answeredWrong = score.wrongQuestions.count { it.userAnswer.isNotEmpty() }
+                val unanswered = score.wrongQuestions.count { it.userAnswer.isEmpty() }
+                ScoreDetailRow(label = "答错题数", value = "$answeredWrong")
+                if (unanswered > 0) {
+                    ScoreDetailRow(label = "未答题数", value = "$unanswered")
+                }
                 ScoreDetailRow(label = "用时", value = formatTime(score.timeUsed))
                 ScoreDetailRow(
                     label = "正确率",
@@ -93,7 +96,7 @@ fun ExamResultScreen(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (score.wrongQuestions.isNotEmpty()) {
+            if (hasReviewableWrong) {
                 Button(
                     onClick = onReviewWrongQuestions,
                     modifier = Modifier

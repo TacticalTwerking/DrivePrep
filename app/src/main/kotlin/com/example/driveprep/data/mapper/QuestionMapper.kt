@@ -41,7 +41,8 @@ object QuestionMapper {
             remark = entity.remark,
             videoExplain = videoExplain,
             isNewRule = entity.newRuleFlag,
-            isErrorProne = entity.errorProneFlag
+            isErrorProne = entity.errorProneFlag,
+            subject = entity.subject
         )
     }
 

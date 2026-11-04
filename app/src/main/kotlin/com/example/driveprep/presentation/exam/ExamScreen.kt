@@ -56,7 +56,6 @@ import com.example.driveprep.domain.model.QuestionType
 import com.example.driveprep.presentation.exam.components.AnswerProgressSheet
 import com.example.driveprep.presentation.exam.components.LoadingScreen
 import com.example.driveprep.presentation.exam.components.QuestionCard
-import com.example.driveprep.presentation.exam.components.TimerBar
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -79,9 +78,8 @@ fun ExamScreen(
     var showSubmitDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(mode) {
-        if (uiState.mode is ExamMode.NotStarted && uiState.questions.isEmpty()) {
-            viewModel.onEvent(ExamEvent.StartExam(mode))
-        }
+        // 由 ViewModel 决定:同模式会话进行中则复用,否则按需恢复进度或开新会话
+        viewModel.onEvent(ExamEvent.StartExam(mode))
     }
 
     LaunchedEffect(uiState.currentIndex) {
@@ -112,7 +110,7 @@ fun ExamScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    BackHandler(enabled = uiState.questions.isNotEmpty() && !uiState.isFinished) {
+    BackHandler(enabled = uiState.interactedThisSession && !uiState.isFinished) {
         showExitDialog = true
     }
 
@@ -123,12 +121,15 @@ fun ExamScreen(
 
     if (uiState.mode is ExamMode.Completed) {
         val score = (uiState.mode as ExamMode.Completed).finalScore
+        // "查看错题"只复习实际作答且答错的题,与错题本规则一致
+        val reviewableIds = score.wrongQuestions
+            .filter { it.userAnswer.isNotEmpty() }
+            .map { it.questionId }
         ExamResultScreen(
             score = score,
+            hasReviewableWrong = reviewableIds.isNotEmpty(),
             onReviewWrongQuestions = {
-                viewModel.onEvent(
-                    ExamEvent.StartQuestionReview(score.wrongQuestions.map { it.questionId })
-                )
+                viewModel.onEvent(ExamEvent.StartQuestionReview(reviewableIds))
             },
             onRetry = { viewModel.onEvent(ExamEvent.RestartExam) },
             onExit = onNavigateBack
@@ -138,75 +139,65 @@ fun ExamScreen(
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (uiState.mode) {
-                            is ExamMode.ErrorReview -> "错题复习"
-                            is ExamMode.Practice -> "章节练习"
-                            else -> "模拟考试"
-                        },
-                        fontWeight = FontWeight.Bold
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (uiState.questions.isNotEmpty() && !uiState.isFinished) {
-                            showExitDialog = true
-                        } else {
-                            onNavigateBack()
+            topBar = {
+                TopAppBar(
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = when (uiState.mode) {
+                                    is ExamMode.ErrorReview -> if (uiState.subject == 4) "科目四错题复习" else "错题复习"
+                                    is ExamMode.Practice -> if (uiState.subject == 4) "科目四随机练习" else "随机练习"
+                                    else -> if (uiState.subject == 4) "科目四模拟考试" else "模拟考试"
+                                },
+                                fontWeight = FontWeight.Bold
+                            )
+                            // 模拟考试:倒计时直接跟在标题后面
+                            if (uiState.hasTimer) {
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    text = formatTime(uiState.timeRemaining),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (uiState.timeRemaining < 5 * 60 * 1000L) {
+                                        MaterialTheme.colorScheme.error
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    }
+                                )
+                            }
                         }
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
-                    }
-                },
-                actions = {
-                    TextButton(onClick = { showProgressSheet = true }) {
-                        Text(
-                            text = "${uiState.currentIndex + 1}/${uiState.questions.size}",
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    if (uiState.hasTimer) {
-                        Text(
-                            text = formatTime(uiState.timeRemaining),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = if (uiState.timeRemaining < 5 * 60 * 1000L) {
-                                MaterialTheme.colorScheme.error
+                    },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            // 本次会话作答过才弹确认框,否则直接退出(进度本就自动保存)
+                            if (uiState.interactedThisSession && !uiState.isFinished) {
+                                showExitDialog = true
                             } else {
-                                MaterialTheme.colorScheme.onSurface
+                                onNavigateBack()
                             }
-                        )
-                        TextButton(
-                            onClick = {
-                                if (uiState.isPaused) {
-                                    viewModel.onEvent(ExamEvent.ResumeExam)
-                                } else {
-                                    viewModel.onEvent(ExamEvent.PauseExam)
-                                }
-                            }
-                        ) {
-                            Text(if (uiState.isPaused) "继续" else "暂停")
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
                         }
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface
+                    },
+                    actions = {
+                        TextButton(onClick = { showProgressSheet = true }) {
+                            Text(
+                                text = "${uiState.currentIndex + 1}/${uiState.questions.size}",
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
-            )
-        }
+            }
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (uiState.hasTimer) {
-                TimerBar(timeRemaining = uiState.timeRemaining)
-            }
-
             Box(modifier = Modifier.weight(1f)) {
                 HorizontalPager(
                     state = pagerState,
@@ -226,7 +217,10 @@ fun ExamScreen(
                                         optionId = optionId
                                     )
                                 )
-                                if (!uiState.showImmediateFeedback &&
+                                // 自动跳下一题只用于模拟考试提速;
+                                // 练习/错题复习要留在当前题查看答案与解析
+                                if (uiState.mode is ExamMode.MockExam &&
+                                    !uiState.showImmediateFeedback &&
                                     question.type != QuestionType.MULTIPLE_CHOICE &&
                                     page < uiState.questions.lastIndex
                                 ) {
@@ -240,6 +234,7 @@ fun ExamScreen(
                             allowReveal = uiState.mode !is ExamMode.MockExam,
                             showAnswerSkill = uiState.showAnswerSkill,
                             showAnswerExplain = uiState.showAnswerExplain,
+                            questionFontSizeSp = uiState.questionFontSizeSp,
                             onRevealAnswer = {
                                 viewModel.onEvent(ExamEvent.RevealAnswer(question.id))
                             }
@@ -250,6 +245,9 @@ fun ExamScreen(
                 if (uiState.isPaused) {
                     PausedOverlay(
                         onResume = { viewModel.onEvent(ExamEvent.ResumeExam) },
+                        onRestart = {
+                            viewModel.onEvent(ExamEvent.RestartExam)
+                        },
                         onExit = { viewModel.saveAndExit(onNavigateBack) }
                     )
                 }
@@ -273,7 +271,8 @@ fun ExamScreen(
                 onDismiss = { showProgressSheet = false },
                 onQuestionClick = { index ->
                     coroutineScope.launch {
-                        pagerState.animateScrollToPage(index)
+                        // 瞬时直达目标页:动画滚动会途经中间页,导致依次闪过其他题目
+                        pagerState.scrollToPage(index)
                         showProgressSheet = false
                     }
                 },
@@ -289,18 +288,26 @@ fun ExamScreen(
         AlertDialog(
             onDismissRequest = { showExitDialog = false },
             title = { Text("退出当前练习？") },
-            text = { Text("答题进度会自动保存，下次进入考试时会恢复原题和答案。") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showExitDialog = false
-                    viewModel.saveAndExit(onNavigateBack)
-                }) {
-                    Text("退出并保存")
-                }
-            },
+            text = { Text("「退出并保存」保留进度，下次进入可继续；「直接退出」将丢弃本次答题记录。") },
             dismissButton = {
                 TextButton(onClick = { showExitDialog = false }) {
                     Text("继续答题")
+                }
+            },
+            confirmButton = {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = {
+                        showExitDialog = false
+                        viewModel.discardAndExit(onNavigateBack)
+                    }) {
+                        Text("直接退出", color = MaterialTheme.colorScheme.error)
+                    }
+                    TextButton(onClick = {
+                        showExitDialog = false
+                        viewModel.saveAndExit(onNavigateBack)
+                    }) {
+                        Text("退出并保存")
+                    }
                 }
             }
         )
@@ -383,7 +390,11 @@ private fun ExamNavigationBar(
 }
 
 @Composable
-private fun PausedOverlay(onResume: () -> Unit, onExit: () -> Unit) {
+private fun PausedOverlay(
+    onResume: () -> Unit,
+    onRestart: () -> Unit,
+    onExit: () -> Unit
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -415,6 +426,9 @@ private fun PausedOverlay(onResume: () -> Unit, onExit: () -> Unit) {
                 Spacer(Modifier.height(4.dp))
                 Button(onClick = onResume, modifier = Modifier.fillMaxWidth()) {
                     Text("继续考试")
+                }
+                OutlinedButton(onClick = onRestart, modifier = Modifier.fillMaxWidth()) {
+                    Text("重考(重新抽题)")
                 }
                 TextButton(onClick = onExit) {
                     Text("保存并返回")

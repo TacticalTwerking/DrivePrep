@@ -20,7 +20,13 @@ data class ExamUiState(
     val errorMessage: String? = null,
     val showImmediateFeedback: Boolean = false,
     val showAnswerSkill: Boolean = false,
-    val showAnswerExplain: Boolean = false
+    val showAnswerExplain: Boolean = false,
+    /** 当前科目:1 = 科目一,4 = 科目四 */
+    val subject: Int = 1,
+    /** 本次进入会话后用户是否作答过(决定按返回时是否弹确认框) */
+    val interactedThisSession: Boolean = false,
+    /** 题目字号(sp),来自设置的三档:24/20/16 */
+    val questionFontSizeSp: Int = 20
 ) {
     val isFinished: Boolean
         get() = mode is ExamMode.Completed

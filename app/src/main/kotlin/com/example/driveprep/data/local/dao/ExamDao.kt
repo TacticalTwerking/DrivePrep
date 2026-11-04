@@ -11,14 +11,15 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface ExamProgressDao {
-    @Query("SELECT * FROM exam_progress WHERE id = 'current_exam'")
-    suspend fun getCurrentProgress(): ExamProgressEntity?
+    /** 每种模式(模拟考试/章节练习/错题复习)各自保存一份进度,id 即模式 key */
+    @Query("SELECT * FROM exam_progress WHERE id = :mode")
+    suspend fun getProgress(mode: String): ExamProgressEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveProgress(progress: ExamProgressEntity)
 
-    @Query("DELETE FROM exam_progress")
-    suspend fun clearProgress()
+    @Query("DELETE FROM exam_progress WHERE id = :mode")
+    suspend fun clearProgress(mode: String)
 }
 
 @Dao
@@ -46,10 +47,4 @@ interface WrongQuestionDao {
 
     @Query("UPDATE wrong_questions SET isMastered = 1 WHERE questionId = :questionId")
     suspend fun markAsMastered(questionId: String)
-
-    @Query("SELECT * FROM wrong_questions WHERE isMastered = 0 ORDER BY wrongCount DESC, lastWrongAt DESC")
-    suspend fun getWrongQuestionEntities(): List<WrongQuestionEntity>
-
-    @Query("SELECT questionId FROM wrong_questions WHERE isMastered = 0")
-    suspend fun getWrongQuestionIds(): List<String>
 }

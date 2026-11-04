@@ -10,15 +10,15 @@ import kotlinx.coroutines.flow.Flow
 
 interface ExamRepository {
     suspend fun loadQuestionsFromAssets(): Result<Unit>
-    suspend fun getRandomExamQuestions(count: Int): Result<List<Question>>
-    suspend fun getQuestionsByChapter(chapterId: String): Result<List<Question>>
+    suspend fun getRandomExamQuestions(subject: Int, count: Int): Result<List<Question>>
     suspend fun getQuestionsByIds(ids: List<String>): Result<List<Question>>
-    suspend fun getErrorProneQuestions(): Result<List<Question>>
-    suspend fun getWrongQuestions(): Flow<List<Question>>
     fun getWrongQuestionItems(): Flow<List<WrongQuestionItem>>
     suspend fun saveExamProgress(data: ExamProgressData): Result<Unit>
-    suspend fun restoreExamProgress(): Result<ExamProgressData?>
-    suspend fun saveExamRecord(score: ExamScore, mode: ExamMode): Result<Unit>
+    /** 按模式恢复进度(每种模式各自一份) */
+    suspend fun restoreExamProgress(mode: String): Result<ExamProgressData?>
+    /** 丢弃指定 key 的进度(不保存退出) */
+    suspend fun clearExamProgress(progressKey: String)
+    suspend fun saveExamRecord(score: ExamScore, mode: ExamMode, progressKey: String): Result<Unit>
     suspend fun recordWrongAnswer(questionId: String, userAnswer: Set<String>)
     suspend fun markWrongQuestionMastered(questionId: String)
     fun getExamRecords(): Flow<List<ExamRecordData>>

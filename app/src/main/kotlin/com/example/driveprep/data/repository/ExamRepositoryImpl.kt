@@ -39,14 +39,13 @@ class ExamRepositoryImpl @Inject constructor(
 
     override suspend fun loadQuestionsFromAssets(): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            val count = questionDao.getQuestionCount()
+            val count = questionDao.getQuestionCount(1)
             if (count > 0) {
                 return@withContext Result.success(Unit)
             }
 
             val jsonString = context.assets.open("q.json").bufferedReader().use { it.readText() }
             val questions = json.decodeFromString<List<QuestionEntity>>(jsonString)
-                .filter { it.subject == 1 }
             questionDao.insertAll(questions)
 
             Result.success(Unit)
@@ -55,22 +54,13 @@ class ExamRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun getRandomExamQuestions(count: Int): Result<List<Question>> {
+    override suspend fun getRandomExamQuestions(subject: Int, count: Int): Result<List<Question>> {
         return try {
-            if (questionDao.getQuestionCount() == 0) {
+            if (questionDao.getQuestionCount(subject) == 0 && subject == 1) {
                 loadQuestionsFromAssets()
             }
 
-            val entities = questionDao.getRandomQuestions(count)
-            Result.success(QuestionMapper.toDomainList(entities))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getQuestionsByChapter(chapterId: String): Result<List<Question>> {
-        return try {
-            val entities = questionDao.getQuestionsByChapter(chapterId)
+            val entities = questionDao.getRandomQuestions(subject, count)
             Result.success(QuestionMapper.toDomainList(entities))
         } catch (e: Exception) {
             Result.failure(e)
@@ -85,23 +75,6 @@ class ExamRepositoryImpl @Inject constructor(
             Result.success(ids.mapNotNull(questionsById::get))
         } catch (e: Exception) {
             Result.failure(e)
-        }
-    }
-
-    override suspend fun getErrorProneQuestions(): Result<List<Question>> {
-        return try {
-            val entities = questionDao.getErrorProneQuestions()
-            Result.success(QuestionMapper.toDomainList(entities))
-        } catch (e: Exception) {
-            Result.failure(e)
-        }
-    }
-
-    override suspend fun getWrongQuestions(): Flow<List<Question>> {
-        return wrongQuestionDao.getWrongQuestionsFlow().map { wrongEntities ->
-            val ids = wrongEntities.map { it.questionId }
-            val entities = questionDao.getQuestionsByIds(ids)
-            QuestionMapper.toDomainList(entities)
         }
     }
 
@@ -128,6 +101,8 @@ class ExamRepositoryImpl @Inject constructor(
     override suspend fun saveExamProgress(data: ExamProgressData): Result<Unit> {
         return try {
             val entity = ExamProgressEntity(
+                // id 即模式 key,每种模式各自一份进度
+                id = data.mode,
                 mode = data.mode,
                 questionIds = json.encodeToString(data.questionIds),
                 answersJson = json.encodeToString(data.answers),
@@ -144,9 +119,9 @@ class ExamRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun restoreExamProgress(): Result<ExamProgressData?> {
+    override suspend fun restoreExamProgress(mode: String): Result<ExamProgressData?> {
         return try {
-            val entity = progressDao.getCurrentProgress()
+            val entity = progressDao.getProgress(mode)
             if (entity == null) {
                 Result.success(null)
             } else {
@@ -169,12 +144,20 @@ class ExamRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun saveExamRecord(score: ExamScore, mode: ExamMode): Result<Unit> {
+    override suspend fun clearExamProgress(progressKey: String) {
+        try {
+            progressDao.clearProgress(progressKey)
+        } catch (_: Exception) {
+            // 清理失败可忽略:下次进入按旧进度恢复
+        }
+    }
+
+    override suspend fun saveExamRecord(score: ExamScore, mode: ExamMode, progressKey: String): Result<Unit> {
         return try {
             val modeString = when (mode) {
                 is ExamMode.MockExam -> "mock_exam"
-                is ExamMode.Practice -> "practice"
-                is ExamMode.ErrorReview -> "error_review"
+                is ExamMode.Practice -> "chapter"
+                is ExamMode.ErrorReview -> "wrong_book"
                 else -> "unknown"
             }
 
@@ -192,7 +175,7 @@ class ExamRepositoryImpl @Inject constructor(
             )
 
             recordDao.insertRecord(entity)
-            progressDao.clearProgress()
+            progressDao.clearProgress(progressKey)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

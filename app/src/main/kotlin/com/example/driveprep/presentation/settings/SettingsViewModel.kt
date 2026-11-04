@@ -3,6 +3,8 @@ package com.example.driveprep.presentation.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.driveprep.data.preferences.UserSettingsStore
+import com.example.driveprep.domain.model.DarkMode
+import com.example.driveprep.domain.model.QuestionFontSize
 import com.example.driveprep.domain.model.UserSettings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -31,5 +33,13 @@ class SettingsViewModel @Inject constructor(
 
     fun setShowAnswerExplain(enabled: Boolean) {
         settingsStore.setShowAnswerExplain(enabled)
+    }
+
+    fun setDarkMode(mode: DarkMode) {
+        settingsStore.setDarkMode(mode)
+    }
+
+    fun setQuestionFontSize(size: QuestionFontSize) {
+        settingsStore.setQuestionFontSize(size)
     }
 }

@@ -1,5 +1,10 @@
 package com.example.driveprep.presentation.navigation
 
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -22,28 +27,46 @@ fun NavGraph(
     NavHost(
         navController = navController,
         startDestination = Route.Home.route,
-        modifier = modifier
+        modifier = modifier,
+        // 传统 Activity 式转场:前进时新页从右滑入,返回时旧页向右滑出
+        enterTransition = {
+            slideInHorizontally(animationSpec = tween(300)) { it } + fadeIn(tween(300))
+        },
+        exitTransition = {
+            slideOutHorizontally(animationSpec = tween(300)) { -it } + fadeOut(tween(300))
+        },
+        popEnterTransition = {
+            slideInHorizontally(animationSpec = tween(300)) { -it } + fadeIn(tween(300))
+        },
+        popExitTransition = {
+            slideOutHorizontally(animationSpec = tween(300)) { it } + fadeOut(tween(300))
+        }
     ) {
         composable(Route.Home.route) {
             HomeScreen(
-                onNavigateToExam = { mode ->
-                    navController.navigate(Route.Exam.createRoute(mode))
+                onNavigateToExam = { mode, subject ->
+                    navController.navigate(Route.Exam.createRoute(mode, subject)) {
+                        launchSingleTop = true
+                    }
                 },
                 onNavigateToWrongBook = {
-                    navController.navigate(Route.WrongBook.route)
+                    navController.navigate(Route.WrongBook.route) { launchSingleTop = true }
                 },
                 onNavigateToStatistics = {
-                    navController.navigate(Route.Statistics.route)
+                    navController.navigate(Route.Statistics.route) { launchSingleTop = true }
                 },
                 onNavigateToSettings = {
-                    navController.navigate(Route.Settings.route)
+                    navController.navigate(Route.Settings.route) { launchSingleTop = true }
                 }
             )
         }
 
         composable(
             route = Route.Exam.route,
-            arguments = listOf(navArgument("mode") { type = NavType.StringType })
+            arguments = listOf(
+                navArgument("mode") { type = NavType.StringType },
+                navArgument("subject") { type = NavType.IntType; defaultValue = 1 }
+            )
         ) { backStackEntry ->
             val mode = backStackEntry.arguments?.getString("mode") ?: "mock_exam"
             ExamScreen(
@@ -56,7 +79,9 @@ fun NavGraph(
             WrongBookScreen(
                 onNavigateBack = { navController.navigateUp() },
                 onStartReview = {
-                    navController.navigate(Route.Exam.createRoute("wrong_book"))
+                    navController.navigate(Route.Exam.createRoute("wrong_book")) {
+                        launchSingleTop = true
+                    }
                 }
             )
         }
@@ -76,7 +101,7 @@ sealed class Route(val route: String) {
     object WrongBook : Route("wrong_book")
     object Statistics : Route("statistics")
     object Settings : Route("settings")
-    object Exam : Route("exam/{mode}") {
-        fun createRoute(mode: String) = "exam/$mode"
+    object Exam : Route("exam/{mode}?subject={subject}") {
+        fun createRoute(mode: String, subject: Int = 1) = "exam/$mode?subject=$subject"
     }
 }

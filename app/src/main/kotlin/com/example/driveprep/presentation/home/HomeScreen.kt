@@ -22,29 +22,39 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     modifier: Modifier = Modifier,
-    onNavigateToExam: (String) -> Unit,
+    onNavigateToExam: (mode: String, subject: Int) -> Unit,
     onNavigateToWrongBook: () -> Unit,
     onNavigateToStatistics: () -> Unit,
-    onNavigateToSettings: () -> Unit
+    onNavigateToSettings: () -> Unit,
+    viewModel: HomeViewModel = hiltViewModel()
 ) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val selectedSubject = settings.lastSubject
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Text(
-                        "驾考科目一",
+                        "驾考练习",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
@@ -65,6 +75,25 @@ fun HomeScreen(
                 .padding(horizontal = 24.dp, vertical = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // 科目切换
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                val subjects = listOf(1 to "科目一", 4 to "科目四")
+                subjects.forEachIndexed { index, (subject, label) ->
+                    SegmentedButton(
+                        selected = selectedSubject == subject,
+                        onClick = { viewModel.setLastSubject(subject) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = subjects.size),
+                        colors = SegmentedButtonDefaults.colors(
+                            activeContainerColor = MaterialTheme.colorScheme.primary,
+                            activeContentColor = MaterialTheme.colorScheme.onPrimary,
+                            activeBorderColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Text(label)
+                    }
+                }
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(20.dp),
@@ -73,43 +102,48 @@ fun HomeScreen(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(24.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                    modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
                     Text(
-                        text = "科目一练习",
-                        style = MaterialTheme.typography.headlineMedium,
+                        text = if (selectedSubject == 4) "科目四练习" else "科目一练习",
+                        style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "模拟考试 100 题 · 45 分钟 · 90 分及格",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = if (selectedSubject == 4) {
+                            "模拟考试 50 题 · 30 分钟 · 90 分及格"
+                        } else {
+                            "模拟考试 100 题 · 45 分钟 · 90 分及格"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 }
             }
 
             Button(
-                onClick = { onNavigateToExam("mock_exam") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(64.dp),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Text(
-                    "模拟考试",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            OutlinedButton(
-                onClick = { onNavigateToExam("chapter") },
+                onClick = { onNavigateToExam("mock_exam", selectedSubject) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Text("章节练习", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "模拟考试",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            OutlinedButton(
+                onClick = { onNavigateToExam("chapter", selectedSubject) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Text("随机练习", style = MaterialTheme.typography.titleMedium)
             }
 
             Row(
@@ -123,7 +157,7 @@ fun HomeScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("错题本")
+                    Text("错题本", style = MaterialTheme.typography.titleMedium)
                 }
                 OutlinedButton(
                     onClick = onNavigateToStatistics,
@@ -132,7 +166,7 @@ fun HomeScreen(
                         .height(56.dp),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("练习报告")
+                    Text("练习报告", style = MaterialTheme.typography.titleMedium)
                 }
             }
 

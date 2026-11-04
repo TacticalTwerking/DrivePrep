@@ -11,19 +11,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -35,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.driveprep.domain.model.Question
 
@@ -49,12 +43,6 @@ fun AnswerProgressSheet(
     onQuestionClick: (Int) -> Unit,
     onSubmit: () -> Unit
 ) {
-    val recentIndices = rememberRecentIndices(
-        questions = questions,
-        answers = answers,
-        currentIndex = currentIndex
-    )
-
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -66,11 +54,11 @@ fun AnswerProgressSheet(
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 24.dp)
         ) {
+            // 标题与图例同行
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(bottom = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
@@ -78,61 +66,29 @@ fun AnswerProgressSheet(
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
-                Text(
-                    text = "${answers.size}/${questions.size}",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
+                Spacer(Modifier.weight(1f))
                 ProgressLegendItem(MaterialTheme.colorScheme.primary, "当前题")
+                Spacer(Modifier.width(12.dp))
                 ProgressLegendItem(MaterialTheme.colorScheme.primaryContainer, "已答")
+                Spacer(Modifier.width(12.dp))
                 ProgressLegendItem(MaterialTheme.colorScheme.surfaceVariant, "未答")
-            }
-
-            if (recentIndices.isNotEmpty()) {
-                Text(
-                    text = "最近题目",
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(8.dp))
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    contentPadding = PaddingValues(bottom = 16.dp)
-                ) {
-                    items(recentIndices) { index ->
-                        RecentQuestionCard(
-                            number = index + 1,
-                            question = questions.getOrNull(index),
-                            isAnswered = questions.getOrNull(index)?.let {
-                                answers.containsKey(it.id)
-                            } == true,
-                            isCurrent = index == currentIndex,
-                            onClick = { onQuestionClick(index) }
-                        )
-                    }
-                }
             }
 
             LazyVerticalGrid(
                 columns = GridCells.Fixed(5),
-                contentPadding = PaddingValues(vertical = 8.dp),
+                contentPadding = PaddingValues(vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
+                // 固定高度:BottomSheet 内不定高约束会导致每帧重新测量,滚动掉帧
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false)
-                    .heightIn(max = 360.dp)
+                    .height(340.dp)
             ) {
-                itemsIndexed(questions) { index, question ->
+                itemsIndexed(
+                    questions,
+                    key = { _, question -> question.id },
+                    contentType = { _, _ -> "grid_cell" }
+                ) { index, question ->
                     QuestionGridItem(
                         number = index + 1,
                         isAnswered = answers.containsKey(question.id),
@@ -157,70 +113,6 @@ fun AnswerProgressSheet(
                     fontWeight = FontWeight.Bold
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun rememberRecentIndices(
-    questions: List<Question>,
-    answers: Map<String, Set<String>>,
-    currentIndex: Int
-): List<Int> {
-    val answeredIndices = answers.keys.mapNotNull { id ->
-        questions.indexOfFirst { it.id == id }.takeIf { it >= 0 }
-    }
-    return (listOf(currentIndex) + answeredIndices.reversed())
-        .filter { it in questions.indices }
-        .distinct()
-        .take(10)
-}
-
-@Composable
-private fun RecentQuestionCard(
-    number: Int,
-    question: Question?,
-    isAnswered: Boolean,
-    isCurrent: Boolean,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier.width(156.dp),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isCurrent) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "第 $number 题",
-                    style = MaterialTheme.typography.labelMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = if (isAnswered) "已答" else "未答",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Text(
-                text = question?.question.orEmpty(),
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
         }
     }
 }

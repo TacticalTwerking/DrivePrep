@@ -19,7 +19,7 @@ import com.example.driveprep.data.local.entity.WrongQuestionEntity
         ExamRecordEntity::class,
         WrongQuestionEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

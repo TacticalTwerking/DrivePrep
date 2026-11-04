@@ -1,32 +1,26 @@
 package com.example.driveprep.presentation.exam.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.InlineTextContent
-import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.text.Placeholder
-import androidx.compose.ui.text.PlaceholderVerticalAlign
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -36,6 +30,7 @@ import com.example.driveprep.domain.model.QuestionType
 
 private val IMAGE_MAX_HEIGHT = 240.dp
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun QuestionCard(
     question: Question,
@@ -47,6 +42,7 @@ fun QuestionCard(
     allowReveal: Boolean = false,
     showAnswerSkill: Boolean = false,
     showAnswerExplain: Boolean = false,
+    questionFontSizeSp: Int = 20,
     onRevealAnswer: () -> Unit = {}
 ) {
     val correctAnswers = question.correctAnswer
@@ -62,9 +58,25 @@ fun QuestionCard(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        QuestionTypeLabel(type = question.type, question = question.question)
+        // 标签行:题型 + 难度 + 易错率 + 标记
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            QuestionTypeTag(type = question.type)
+            QuestionMetadata(question = question)
+        }
 
-        QuestionMetadata(question = question)
+        // 题干
+        Text(
+            text = question.question,
+            style = MaterialTheme.typography.headlineSmall.copy(
+                fontSize = questionFontSizeSp.sp,
+                lineHeight = (questionFontSizeSp * 1.45f).sp
+            ),
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onSurface
+        )
 
         question.imageUrl?.takeIf { it.isNotBlank() }?.let { url ->
             AsyncImage(
@@ -122,7 +134,7 @@ fun QuestionCard(
                 Text("确认答案")
             }
         } else if (!showResult && allowReveal && selectedAnswers.isNotEmpty()) {
-            OutlinedButton(
+            TextButton(
                 onClick = onRevealAnswer,
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -157,70 +169,41 @@ fun QuestionCard(
 }
 
 @Composable
-private fun QuestionTypeLabel(type: QuestionType, question: String) {
-    val tagId = "questionTypeTag"
-    val annotatedString = buildAnnotatedString {
-        appendInlineContent(tagId, "[Tag]")
-        append("  ")
-        append(question)
-    }
-    val inlineContent = mapOf(
-        tagId to InlineTextContent(
-            Placeholder(
-                width = 68.sp,
-                height = 28.sp,
-                placeholderVerticalAlign = PlaceholderVerticalAlign.Center
-            )
-        ) {
-            Surface(
-                shape = RoundedCornerShape(999.dp),
-                color = when (type) {
-                    QuestionType.SINGLE_CHOICE -> MaterialTheme.colorScheme.primaryContainer
-                    QuestionType.MULTIPLE_CHOICE -> MaterialTheme.colorScheme.secondaryContainer
-                    QuestionType.TRUE_FALSE -> MaterialTheme.colorScheme.tertiaryContainer
-                }
-            ) {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Text(
-                        text = when (type) {
-                            QuestionType.SINGLE_CHOICE -> "单选题"
-                            QuestionType.MULTIPLE_CHOICE -> "多选题"
-                            QuestionType.TRUE_FALSE -> "判断题"
-                        },
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
+private fun QuestionTypeTag(type: QuestionType) {
+    Surface(
+        shape = RoundedCornerShape(999.dp),
+        color = when (type) {
+            QuestionType.SINGLE_CHOICE -> MaterialTheme.colorScheme.primaryContainer
+            QuestionType.MULTIPLE_CHOICE -> MaterialTheme.colorScheme.secondaryContainer
+            QuestionType.TRUE_FALSE -> MaterialTheme.colorScheme.tertiaryContainer
         }
-    )
-
-    Text(
-        text = annotatedString,
-        inlineContent = inlineContent,
-        style = MaterialTheme.typography.headlineSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        lineHeight = MaterialTheme.typography.headlineSmall.lineHeight.times(1.3f)
-    )
+    ) {
+        Text(
+            text = when (type) {
+                QuestionType.SINGLE_CHOICE -> "单选题"
+                QuestionType.MULTIPLE_CHOICE -> "多选题"
+                QuestionType.TRUE_FALSE -> "判断题"
+            },
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold,
+            color = when (type) {
+                QuestionType.SINGLE_CHOICE -> MaterialTheme.colorScheme.onPrimaryContainer
+                QuestionType.MULTIPLE_CHOICE -> MaterialTheme.colorScheme.onSecondaryContainer
+                QuestionType.TRUE_FALSE -> MaterialTheme.colorScheme.onTertiaryContainer
+            },
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
 }
 
 @Composable
 private fun QuestionMetadata(question: Question) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        MetadataChip("难度 ${question.difficulty}")
-        if (question.errorRate > 0f) {
-            MetadataChip("易错率 ${question.errorRate.toInt()}%")
-        }
-        if (question.isNewRule) MetadataChip("新规")
-        if (question.isErrorProne) MetadataChip("高频易错")
+    MetadataChip("难度 ${question.difficulty}")
+    if (question.errorRate > 0f) {
+        MetadataChip("易错率 ${question.errorRate.toInt()}%")
     }
+    if (question.isNewRule) MetadataChip("新规")
+    if (question.isErrorProne) MetadataChip("高频易错")
 }
 
 @Composable
