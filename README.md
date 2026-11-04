@@ -10,30 +10,33 @@
 - **数据库**: Room
 - **异步处理**: Kotlin Coroutines + Flow
 - **图片加载**: Coil
-- **网络**: Retrofit + Kotlin Serialization
+- **序列化**: Kotlin Serialization(题库 JSON 解析与进度持久化)
 
 ## 项目结构
 
 ```
-app/
-├── data/              # 数据层
-│   ├── local/         # Room 数据库
-│   ├── repository/    # Repository 实现
-│   ├── mapper/        # 数据映射
-│   └── preferences/   # 用户设置
-├── domain/            # 业务逻辑层
-│   ├── model/         # 领域模型
-│   └── repository/    # Repository 接口
-├── presentation/      # UI 层
-│   ├── exam/          # 考试/练习界面
-│   ├── home/          # 首页
-│   ├── wrongbook/     # 错题本
-│   ├── statistics/    # 统计
-│   ├── settings/      # 设置
-│   ├── navigation/    # 导航
-│   └── theme/         # 主题配置
-└── di/                # 依赖注入
+app/src/main/kotlin/com/example/driveprep/
+├── data/                  # 数据层
+│   ├── local/             # Room 数据库
+│   │   ├── dao/           #   数据访问接口
+│   │   └── entity/        #   表实体
+│   ├── repository/        # Repository 实现
+│   ├── mapper/            # 数据映射
+│   └── preferences/       # 用户设置(SharedPreferences)
+├── domain/                # 业务逻辑层
+│   ├── model/             # 领域模型
+│   └── repository/        # Repository 接口
+├── presentation/          # UI 层
+│   ├── exam/              # 考试/练习界面(含 components 组件)
+│   ├── home/              # 首页
+│   ├── wrongbook/         # 错题本
+│   ├── statistics/        # 练习报告
+│   ├── settings/          # 设置
+│   ├── navigation/        # 导航
+│   └── theme/             # 主题配置
+└── di/                    # Hilt 依赖注入
 
+app/src/test/              # 单元测试(30 例)
 ```
 
 ## 功能特性
@@ -41,6 +44,7 @@ app/
 - ✅ 科目一 / 科目四双题库(共 4300+ 题,离线可用)
 - ✅ 模拟考试(科一 100 题·45 分钟 / 科四 50 题·30 分钟),倒计时自动交卷
 - ✅ 随机练习,题量与考试标准一致
+- ✅ 图片题加载,多选题乱序不影响判分
 - ✅ 错题本:按错误次数排序、专项练习、标记掌握
 - ✅ 练习报告:练习次数、平均分、通过率、高频错题、历史记录
 - ✅ 考试进度自动保存与恢复(按科目+模式独立),支持不保存退出与一键重考
@@ -67,12 +71,6 @@ app/
 ## 数据模型
 
 题库数据格式参考：https://github.com/doupoa/DrivingTestSubjectOne
-
-## 构建
-
-```bash
-./gradlew assembleDebug
-```
 
 ## License
 
