@@ -25,6 +25,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
@@ -52,7 +55,10 @@ class ExamViewModel @Inject constructor(
      * 独立于 viewModelScope 的写库作用域:
      * 提交成绩/错题累计/退出清理等关键操作,不能被页面销毁时的 onCleared 取消
      */
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 串行化“保存进度 / 交卷清理 / 丢弃进度”,避免旧写入在清理后把进度写回来。 */
+    private val progressMutex = Mutex()
 
     init {
         viewModelScope.launch {
@@ -100,7 +106,14 @@ class ExamViewModel @Inject constructor(
             it.copy(isPaused = it.hasTimer || it.isPaused)
         }
         viewModelScope.launch {
-            repository.saveExamProgress(toProgressData(_uiState.value))
+            progressMutex.withLock {
+                val latest = _uiState.value
+                if (latest.questions.isNotEmpty() && !latest.isFinished &&
+                    !discardRequested && !isSubmitting
+                ) {
+                    repository.saveExamProgress(toProgressData(latest))
+                }
+            }
             onSaved()
         }
     }
@@ -113,8 +126,11 @@ class ExamViewModel @Inject constructor(
         saveJob?.cancel()
         discardRequested = true
         appScope.launch {
-            repository.clearExamProgress(progressKey(currentModeKey, state.subject))
-            onExited()
+            progressMutex.withLock {
+                repository.clearExamProgress(progressKey(currentModeKey, state.subject))
+            }
+            // appScope 运行在 IO 线程,导航回调必须切回主线程。
+            withContext(Dispatchers.Main.immediate) { onExited() }
         }
     }
 
@@ -136,9 +152,13 @@ class ExamViewModel @Inject constructor(
             }
 
             val result = when (modeKey) {
-                "wrong_book" -> repository.getWrongQuestionItems().first()
-                    .map { it.question }
-                    .let { Result.success(it) }
+                "wrong_book" -> try {
+                    Result.success(
+                        repository.getWrongQuestionItems().first().map { it.question }
+                    )
+                } catch (e: Exception) {
+                    Result.failure(e)
+                }
                 else -> repository.getRandomExamQuestions(subject, standardQuestionCount())
             }
 
@@ -178,15 +198,19 @@ class ExamViewModel @Inject constructor(
         // 科目不符(如进度是科目一的,本次进的是科目四)→ 不恢复
         if (enforceSubject && (questions.firstOrNull()?.subject ?: subject) != subject) return false
         // 题数与当前设置不符 → 不恢复,让新设置立即生效
-        if (expectedCount != null && progress.questionIds.size != expectedCount) return false
+        if (expectedCount != null && (
+                progress.questionIds.size != expectedCount || questions.size != expectedCount
+            )
+        ) return false
 
-        val mode = restoreMode(progress.mode, progress.questionIds)
+        // progress.mode 存的是带科目的进度 key(chapter_s1 等),必须用 modeKey 还原。
+        val mode = restoreMode(modeKey, progress.questionIds)
         val sessionSubject = questions.firstOrNull()?.subject ?: subject
         discardRequested = false
         _uiState.update {
             it.copy(
                 mode = mode,
-                questions = prepareQuestions(questions),
+                questions = questions,
                 currentIndex = progress.currentIndex.coerceIn(0, questions.lastIndex),
                 answers = progress.answers,
                 revealedQuestionIds = emptySet(),
@@ -206,8 +230,11 @@ class ExamViewModel @Inject constructor(
             )
         }
 
-        if (mode is ExamMode.MockExam && !progress.isPaused) {
-            startTimer()
+        if (mode is ExamMode.MockExam) {
+            when {
+                progress.timeRemaining <= 0L -> submitExam()
+                !progress.isPaused -> startTimer()
+            }
         }
         return true
     }
@@ -250,7 +277,7 @@ class ExamViewModel @Inject constructor(
         isSubmitting = false
         discardRequested = false
 
-        val questions = prepareQuestions(loadedQuestions)
+        val questions = loadedQuestions
         val config = configForMode(mode, questions.size, subjectOf(questions))
         _uiState.update {
             it.copy(
@@ -304,12 +331,15 @@ class ExamViewModel @Inject constructor(
             setOf(optionId)
         }
 
+        val canRevealInPractice = state.mode is ExamMode.Practice ||
+            state.mode is ExamMode.ErrorReview
         _uiState.update {
             it.copy(
                 answers = it.answers + (questionId to newAnswers),
                 interactedThisSession = true,
                 revealedQuestionIds = if (
-                    state.showImmediateFeedback && question.type != QuestionType.MULTIPLE_CHOICE
+                    state.showImmediateFeedback && canRevealInPractice &&
+                        question.type != QuestionType.MULTIPLE_CHOICE
                 ) {
                     it.revealedQuestionIds + questionId
                 } else {
@@ -322,7 +352,7 @@ class ExamViewModel @Inject constructor(
 
     private fun revealAnswer(questionId: String) {
         val state = _uiState.value
-        if (state.isPaused || state.isFinished) return
+        if (state.isPaused || state.isFinished || state.mode is ExamMode.MockExam) return
         if (state.answers[questionId].isNullOrEmpty()) return
         _uiState.update { it.copy(revealedQuestionIds = it.revealedQuestionIds + questionId) }
     }
@@ -346,7 +376,13 @@ class ExamViewModel @Inject constructor(
         val score = calculateScore(state)
         // 关键写库放独立作用域:交卷后立即返回首页也不会丢成绩记录/错题累计
         appScope.launch {
-            repository.saveExamRecord(score, state.mode, progressKey(currentModeKey, state.subject))
+            progressMutex.withLock {
+                repository.saveExamRecord(
+                    score,
+                    state.mode,
+                    progressKey(currentModeKey, state.subject)
+                )
+            }
             // 未作答的题只扣分,不计入错题本
             score.wrongQuestions.forEach { wrong ->
                 if (wrong.userAnswer.isNotEmpty()) {
@@ -464,7 +500,12 @@ class ExamViewModel @Inject constructor(
         if (state.questions.isEmpty() || state.isFinished) return
         if (discardRequested) return
         viewModelScope.launch {
-            repository.saveExamProgress(toProgressData(state))
+            progressMutex.withLock {
+                if (discardRequested || isSubmitting) return@withLock
+                val latest = _uiState.value
+                if (latest.questions.isEmpty() || latest.isFinished) return@withLock
+                repository.saveExamProgress(toProgressData(latest))
+            }
         }
     }
 
@@ -472,8 +513,7 @@ class ExamViewModel @Inject constructor(
         val state = _uiState.value
         return state.questions.isNotEmpty() &&
             state.mode !is ExamMode.NotStarted &&
-            state.mode !is ExamMode.Completed &&
-            state.mode !is ExamMode.TimeUp
+            state.mode !is ExamMode.Completed
     }
 
     private fun restoreMode(mode: String, ids: List<String>): ExamMode {
@@ -511,16 +551,6 @@ class ExamViewModel @Inject constructor(
             }
         } else {
             ExamConfig(totalQuestions = totalQuestions, duration = 0L)
-        }
-    }
-
-    private fun prepareQuestions(questions: List<Question>): List<Question> {
-        return questions.map { question ->
-            if (question.type == QuestionType.MULTIPLE_CHOICE && question.options.size > 1) {
-                question.copy(options = question.options.shuffled())
-            } else {
-                question
-            }
         }
     }
 

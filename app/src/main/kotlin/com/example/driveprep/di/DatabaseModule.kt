@@ -31,7 +31,7 @@ object DatabaseModule {
             "driveprep_database"
         )
             .addMigrations(MIGRATION_3_4)
-            .fallbackToDestructiveMigration()
+            .addMigrations(MIGRATION_4_5)
             .build()
     }
 
@@ -39,6 +39,31 @@ object DatabaseModule {
         override fun migrate(database: SupportSQLiteDatabase) {
             database.execSQL(
                 "ALTER TABLE exam_progress ADD COLUMN isPaused INTEGER NOT NULL DEFAULT 0"
+            )
+        }
+    }
+
+    /**
+     * v5 调整了进度行的主键语义:由单一 current_exam 改为按模式/科目分别保存。
+     * 表结构未变,但需要把旧进度迁移到新 key,避免升级后丢失未完成的考试。
+     */
+    private val MIGRATION_4_5 = object : Migration(4, 5) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                UPDATE OR REPLACE exam_progress
+                SET id = CASE
+                        WHEN mode IN ('practice', 'chapter') THEN 'chapter_s1'
+                        WHEN mode IN ('error_review', 'wrong_book') THEN 'wrong_book'
+                        ELSE 'mock_exam_s1'
+                    END,
+                    mode = CASE
+                        WHEN mode IN ('practice', 'chapter') THEN 'chapter_s1'
+                        WHEN mode IN ('error_review', 'wrong_book') THEN 'wrong_book'
+                        ELSE 'mock_exam_s1'
+                    END
+                WHERE id = 'current_exam'
+                """.trimIndent()
             )
         }
     }

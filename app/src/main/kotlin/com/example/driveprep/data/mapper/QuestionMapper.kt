@@ -22,7 +22,7 @@ object QuestionMapper {
         val videoExplain = if (!entity.aliyunVid.isNullOrEmpty() || !entity.coverUrl.isNullOrEmpty()) {
             VideoExplain(
                 aliyunVideoId = entity.aliyunVid,
-                coverUrl = entity.coverUrl
+                coverUrl = entity.coverUrl?.toHttps()
             )
         } else null
 
@@ -30,7 +30,7 @@ object QuestionMapper {
             id = entity.id,
             type = type,
             question = entity.question,
-            imageUrl = entity.imageUrl,
+            imageUrl = entity.imageUrl?.toHttps(),
             options = options,
             correctAnswer = entity.answer,
             chapterId = entity.chapterId ?: "1",
@@ -48,5 +48,13 @@ object QuestionMapper {
 
     fun toDomainList(entities: List<QuestionEntity>): List<Question> {
         return entities.map { toDomain(it) }
+    }
+
+    /**
+     * 题库图片 CDN(chetailian.com)已支持 https;
+     * 统一升级链接,避免依赖 manifest 的全局明文流量放行。
+     */
+    private fun String.toHttps(): String {
+        return if (startsWith("http://")) "https://" + substring(7) else this
     }
 }

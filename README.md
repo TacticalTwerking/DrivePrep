@@ -1,6 +1,6 @@
 # DrivePrep - 驾考模拟练习
 
-基于 Android Jetpack Compose 的驾考理论考试练习应用,覆盖科目一与科目四双题库,完全离线可用。
+基于 Android Jetpack Compose 的驾考理论考试练习应用,覆盖科目一与科目四双题库。题目与练习记录可离线使用,图片题首次加载需要联网。
 
 ## 技术栈
 

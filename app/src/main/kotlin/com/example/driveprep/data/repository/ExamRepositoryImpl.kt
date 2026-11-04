@@ -21,6 +21,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -37,31 +39,41 @@ class ExamRepositoryImpl @Inject constructor(
     private val json: Json
 ) : ExamRepository {
 
+    private val assetImportMutex = Mutex()
+
     override suspend fun loadQuestionsFromAssets(): Result<Unit> = withContext(Dispatchers.IO) {
-        try {
-            val count = questionDao.getQuestionCount(1)
-            if (count > 0) {
-                return@withContext Result.success(Unit)
+        assetImportMutex.withLock {
+            try {
+                // 旧版本只导入了科目一,升级后必须补导科目四。
+                val subjectOneCount = questionDao.getQuestionCount(1)
+                val subjectFourCount = questionDao.getQuestionCount(4)
+                if (subjectOneCount > 0 && subjectFourCount > 0) {
+                    return@withLock Result.success(Unit)
+                }
+
+                val jsonString = context.assets.open("q.json").bufferedReader().use { it.readText() }
+                val questions = json.decodeFromString<List<QuestionEntity>>(jsonString)
+                questionDao.insertAll(questions)
+
+                Result.success(Unit)
+            } catch (e: Exception) {
+                Result.failure(e)
             }
-
-            val jsonString = context.assets.open("q.json").bufferedReader().use { it.readText() }
-            val questions = json.decodeFromString<List<QuestionEntity>>(jsonString)
-            questionDao.insertAll(questions)
-
-            Result.success(Unit)
-        } catch (e: Exception) {
-            Result.failure(e)
         }
     }
 
     override suspend fun getRandomExamQuestions(subject: Int, count: Int): Result<List<Question>> {
         return try {
-            if (questionDao.getQuestionCount(subject) == 0 && subject == 1) {
+            if (questionDao.getQuestionCount(subject) == 0) {
                 loadQuestionsFromAssets()
             }
 
             val entities = questionDao.getRandomQuestions(subject, count)
-            Result.success(QuestionMapper.toDomainList(entities))
+            if (entities.isEmpty()) {
+                Result.failure(IllegalStateException("题库中没有科目$subject 的题目"))
+            } else {
+                Result.success(QuestionMapper.toDomainList(entities))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -70,7 +82,7 @@ class ExamRepositoryImpl @Inject constructor(
     override suspend fun getQuestionsByIds(ids: List<String>): Result<List<Question>> {
         if (ids.isEmpty()) return Result.success(emptyList())
         return try {
-            val entities = questionDao.getQuestionsByIds(ids)
+            val entities = loadQuestionEntitiesByIds(ids)
             val questionsById = QuestionMapper.toDomainList(entities).associateBy { it.id }
             Result.success(ids.mapNotNull(questionsById::get))
         } catch (e: Exception) {
@@ -81,8 +93,7 @@ class ExamRepositoryImpl @Inject constructor(
     override fun getWrongQuestionItems(): Flow<List<WrongQuestionItem>> {
         return wrongQuestionDao.getWrongQuestionsFlow().map { wrongEntities ->
             if (wrongEntities.isEmpty()) return@map emptyList()
-            val questionsById = questionDao
-                .getQuestionsByIds(wrongEntities.map { it.questionId })
+            val questionsById = loadQuestionEntitiesByIds(wrongEntities.map { it.questionId })
                 .let(QuestionMapper::toDomainList)
                 .associateBy { it.id }
 
@@ -95,6 +106,14 @@ class ExamRepositoryImpl @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    /** SQLite 单条语句的绑定参数有上限,错题较多时必须分批查询。 */
+    private suspend fun loadQuestionEntitiesByIds(ids: List<String>): List<QuestionEntity> {
+        if (ids.isEmpty()) return emptyList()
+        return ids.chunked(SQLITE_MAX_VARIABLES).flatMap { chunk ->
+            questionDao.getQuestionsByIds(chunk)
         }
     }
 
@@ -227,6 +246,10 @@ class ExamRepositoryImpl @Inject constructor(
                 )
             }
         }
+    }
+
+    private companion object {
+        const val SQLITE_MAX_VARIABLES = 900
     }
 }
 

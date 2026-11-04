@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.driveprep.domain.model.Question
 import com.example.driveprep.domain.model.QuestionType
+import com.example.driveprep.domain.model.parseAnswerSet
 
 private val IMAGE_MAX_HEIGHT = 240.dp
 
@@ -45,10 +46,7 @@ fun QuestionCard(
     questionFontSizeSp: Int = 20,
     onRevealAnswer: () -> Unit = {}
 ) {
-    val correctAnswers = question.correctAnswer
-        .split(Regex("[,，\\s]+"))
-        .filter { it.isNotBlank() }
-        .toSet()
+    val correctAnswers = parseAnswerSet(question.correctAnswer)
     val showResult = revealed || isReviewMode
 
     Column(

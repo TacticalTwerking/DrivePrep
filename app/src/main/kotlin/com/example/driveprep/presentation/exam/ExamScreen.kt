@@ -314,7 +314,8 @@ fun ExamScreen(
     }
 
     if (showSubmitDialog) {
-        val unanswered = uiState.questions.size - uiState.answers.size
+        // 多选题取消全部选项后，answers 里仍会留下空集合，不能按 key 数量判断已答。
+        val unanswered = uiState.questions.count { uiState.answers[it.id].isNullOrEmpty() }
         AlertDialog(
             onDismissRequest = { showSubmitDialog = false },
             title = { Text("确认交卷？") },

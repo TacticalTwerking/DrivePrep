@@ -258,8 +258,8 @@ private fun RecordCard(record: ExamRecordData) {
 
 private fun modeLabel(mode: String): String = when (mode) {
     "mock_exam" -> "模拟考试"
-    "practice" -> "章节练习"
-    "error_review" -> "错题练习"
+    "practice", "chapter" -> "随机练习"
+    "error_review", "wrong_book" -> "错题练习"
     else -> "练习"
 }
 

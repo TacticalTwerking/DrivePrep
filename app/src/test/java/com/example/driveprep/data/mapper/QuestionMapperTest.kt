@@ -15,6 +15,7 @@ class QuestionMapperTest {
         type: Int = 1,
         chapterId: String? = "1",
         errorRate: String? = "4.3",
+        imageUrl: String? = "https://example.com/img.png",
         aliyunVid: String? = null,
         coverUrl: String? = null,
         newRuleFlag: Boolean = false,
@@ -23,7 +24,7 @@ class QuestionMapperTest {
         id = "q1",
         type = type,
         question = "夜间会车应在多少米外改用近光灯?",
-        imageUrl = "https://example.com/img.png",
+        imageUrl = imageUrl,
         answer = "B",
         itemsTitleArray = listOf("A", "B", "C", "D"),
         itemsDescArray = listOf("50米", "150米", "100米", "30米"),
@@ -111,6 +112,27 @@ class QuestionMapperTest {
         val video = QuestionMapper.toDomain(entity(coverUrl = "https://example.com/cover.jpg")).videoExplain
         assertNull(video?.aliyunVideoId)
         assertEquals("https://example.com/cover.jpg", video?.coverUrl)
+    }
+
+    @Test
+    fun `http image url upgrades to https`() {
+        val question = QuestionMapper.toDomain(
+            entity(imageUrl = "http://app.static.public.chetailian.com/img.jpg")
+        )
+        assertEquals("https://app.static.public.chetailian.com/img.jpg", question.imageUrl)
+    }
+
+    @Test
+    fun `null image url stays null`() {
+        assertNull(QuestionMapper.toDomain(entity(imageUrl = null)).imageUrl)
+    }
+
+    @Test
+    fun `http cover url upgrades to https`() {
+        val video = QuestionMapper.toDomain(
+            entity(coverUrl = "http://app.static.public.chetailian.com/cover.jpg")
+        ).videoExplain
+        assertEquals("https://app.static.public.chetailian.com/cover.jpg", video?.coverUrl)
     }
 
     @Test
