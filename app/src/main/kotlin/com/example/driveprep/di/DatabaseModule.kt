@@ -69,14 +69,20 @@ object DatabaseModule {
         }
     }
 
-    /**
-     * v6 成绩记录增加科目列。存量行无法判别科目,
-     * 统一回填为科目一(科目四支持上线前的记录本就只有科目一)。
-     */
+    /** v6 成绩记录增加科目列,存量记录按标准题量回填科目。 */
     private val MIGRATION_5_6 = object : Migration(5, 6) {
         override fun migrate(database: SupportSQLiteDatabase) {
             database.execSQL(
                 "ALTER TABLE exam_records ADD COLUMN subject INTEGER NOT NULL DEFAULT 1"
+            )
+            // v5 已支持科目四:标准模拟/练习记录题量为 50,科目一为 100。
+            // 错题复习题量不固定,无法可靠推断,保留默认科目一。
+            database.execSQL(
+                """
+                UPDATE exam_records
+                SET subject = 4
+                WHERE mode IN ('mock_exam', 'chapter', 'practice') AND total = 50
+                """.trimIndent()
             )
         }
     }

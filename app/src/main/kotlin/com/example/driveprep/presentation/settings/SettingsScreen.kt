@@ -1,5 +1,10 @@
 package com.example.driveprep.presentation.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,9 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -22,12 +29,15 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.driveprep.domain.model.DarkMode
@@ -40,6 +50,11 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val imagePack by viewModel.imagePack.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* 拒绝也不影响下载,只是收不到进度/完成通知 */ }
 
     Scaffold(
         topBar = {
@@ -156,6 +171,89 @@ fun SettingsScreen(
                 checked = settings.showAnswerExplain,
                 onCheckedChange = viewModel::setShowAnswerExplain
             )
+
+            Text(
+                text = "离线图片包",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Text(
+                text = "把全部题目图片下载到应用缓存目录(约 35 MB),完成后做题不再需要联网。图片只存放在应用私有目录,不会出现在系统相册。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            when {
+                imagePack.isDownloading -> {
+                    LinearProgressIndicator(
+                        progress = {
+                            if (imagePack.total > 0) {
+                                imagePack.ready.toFloat() / imagePack.total
+                            } else {
+                                0f
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        // 底色与未激活 Switch 边框同源;去掉 M3 默认的末端小圆点
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline,
+                        gapSize = 0.dp,
+                        drawStopIndicator = {}
+                    )
+                    Text(
+                        text = buildString {
+                            append("下载中 ${imagePack.ready}/${imagePack.total}")
+                            if (imagePack.failed > 0) append(" · 失败 ${imagePack.failed} 张")
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    TextButton(onClick = viewModel::cancelImageDownload) {
+                        Text("取消下载")
+                    }
+                }
+
+                imagePack.isReady -> {
+                    Text(
+                        text = "已离线可用 · ${imagePack.ready} 张 · ${imagePack.sizeBytes / 1024 / 1024} MB",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    TextButton(onClick = viewModel::clearImages) {
+                        Text("清除图片包")
+                    }
+                }
+
+                else -> {
+                    if (imagePack.failed > 0) {
+                        Text(
+                            text = "上次有 ${imagePack.failed} 张下载失败,重新下载会自动跳过已完成的图片",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                    Button(onClick = {
+                        // Android 13+ 需要运行时通知权限才能看到进度/完成通知
+                        if (Build.VERSION.SDK_INT >= 33 &&
+                            ContextCompat.checkSelfPermission(
+                                context,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) != PackageManager.PERMISSION_GRANTED
+                        ) {
+                            notificationPermissionLauncher.launch(
+                                Manifest.permission.POST_NOTIFICATIONS
+                            )
+                        }
+                        viewModel.downloadImages()
+                    }) {
+                        Text(
+                            if (imagePack.ready > 0) {
+                                "继续下载(${imagePack.ready}/${imagePack.total})"
+                            } else {
+                                "下载图片包"
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }

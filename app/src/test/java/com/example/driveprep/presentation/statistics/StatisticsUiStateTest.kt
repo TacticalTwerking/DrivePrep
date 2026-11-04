@@ -1,6 +1,10 @@
 package com.example.driveprep.presentation.statistics
 
 import com.example.driveprep.domain.model.ExamRecordData
+import com.example.driveprep.domain.model.Option
+import com.example.driveprep.domain.model.Question
+import com.example.driveprep.domain.model.QuestionType
+import com.example.driveprep.domain.model.WrongQuestionItem
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -22,6 +26,29 @@ class StatisticsUiStateTest {
         timeUsed = 60_000L,
         wrongQuestionIds = emptyList(),
         completedAt = 0L
+    )
+
+    private fun wrongQuestion(id: String, subject: Int) = WrongQuestionItem(
+        question = Question(
+            id = id,
+            type = QuestionType.SINGLE_CHOICE,
+            question = "题目",
+            imageUrl = null,
+            options = listOf(Option("A", "选项A")),
+            correctAnswer = "A",
+            chapterId = "1",
+            difficulty = 1,
+            errorRate = 0f,
+            answerSkill = null,
+            answerSkillExplain = null,
+            remark = null,
+            videoExplain = null,
+            isNewRule = false,
+            isErrorProne = false,
+            subject = subject
+        ),
+        wrongCount = 1,
+        lastWrongAt = 0L
     )
 
     @Test
@@ -77,5 +104,17 @@ class StatisticsUiStateTest {
         assertEquals(0, state.bestScore)
         assertEquals(0, state.passRate)
         assertEquals(0, state.totalQuestions)
+    }
+
+    @Test
+    fun `subject filter only keeps matching wrong questions`() {
+        val state = StatisticsUiState(
+            wrongQuestions = listOf(
+                wrongQuestion("q1", subject = 1),
+                wrongQuestion("q4", subject = 4)
+            ),
+            selectedSubject = 4
+        )
+        assertEquals(listOf("q4"), state.visibleWrongQuestions.map { it.question.id })
     }
 }

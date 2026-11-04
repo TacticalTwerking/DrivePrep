@@ -45,6 +45,8 @@ fun StatisticsScreen(
     viewModel: StatisticsViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val visibleRecords = state.visibleRecords
+    val visibleWrongQuestions = state.visibleWrongQuestions
 
     Scaffold(
         topBar = {
@@ -126,14 +128,14 @@ fun StatisticsScreen(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "共 ${state.totalQuestions} 题，答对 ${state.totalCorrect} 题，错题本 ${state.wrongQuestions.size} 题",
+                            text = "共 ${state.totalQuestions} 题，答对 ${state.totalCorrect} 题，错题本 ${visibleWrongQuestions.size} 题",
                             style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 }
             }
 
-            if (state.wrongQuestions.isNotEmpty()) {
+            if (visibleWrongQuestions.isNotEmpty()) {
                 item {
                     Text(
                         text = "高频错题",
@@ -142,7 +144,7 @@ fun StatisticsScreen(
                         modifier = Modifier.padding(top = 8.dp)
                     )
                 }
-                items(state.wrongQuestions.take(5), key = { it.question.id }) { item ->
+                items(visibleWrongQuestions.take(5), key = { it.question.id }) { item ->
                     RecentWrongRow(
                         question = item.question.question,
                         wrongCount = item.wrongCount
@@ -159,7 +161,7 @@ fun StatisticsScreen(
                 )
             }
 
-            if (state.records.isEmpty() && !state.isLoading) {
+            if (visibleRecords.isEmpty() && !state.isLoading) {
                 item {
                     Text(
                         text = "完成一次模拟考试或练习后，这里会生成报告。",
@@ -168,7 +170,7 @@ fun StatisticsScreen(
                     )
                 }
             } else {
-                items(state.records, key = { it.id }) { record ->
+                items(visibleRecords, key = { it.id }) { record ->
                     RecordCard(record)
                 }
             }

@@ -24,6 +24,11 @@ data class StatisticsUiState(
     val visibleRecords: List<ExamRecordData>
         get() = selectedSubject?.let { s -> records.filter { it.subject == s } } ?: records
 
+    val visibleWrongQuestions: List<WrongQuestionItem>
+        get() = selectedSubject?.let { s ->
+            wrongQuestions.filter { it.question.subject == s }
+        } ?: wrongQuestions
+
     val totalExams: Int get() = visibleRecords.size
     val averageScore: Int
         get() = if (visibleRecords.isEmpty()) 0 else visibleRecords.sumOf { it.score } / visibleRecords.size

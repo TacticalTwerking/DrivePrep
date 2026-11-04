@@ -220,7 +220,6 @@ fun ExamScreen(
                                 // 自动跳下一题只用于模拟考试提速;
                                 // 练习/错题复习要留在当前题查看答案与解析
                                 if (uiState.mode is ExamMode.MockExam &&
-                                    !uiState.showImmediateFeedback &&
                                     question.type != QuestionType.MULTIPLE_CHOICE &&
                                     page < uiState.questions.lastIndex
                                 ) {

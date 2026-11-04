@@ -17,6 +17,9 @@ interface QuestionDao {
     @Query("SELECT * FROM questions WHERE subject = :subject ORDER BY RANDOM() LIMIT :limit")
     suspend fun getRandomQuestions(subject: Int, limit: Int): List<QuestionEntity>
 
+    @Query("SELECT DISTINCT imageUrl FROM questions WHERE imageUrl IS NOT NULL AND imageUrl != ''")
+    suspend fun getAllImageUrls(): List<String?>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(questions: List<QuestionEntity>)
 }

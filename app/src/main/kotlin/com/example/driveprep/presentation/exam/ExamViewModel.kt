@@ -320,7 +320,7 @@ class ExamViewModel @Inject constructor(
 
     private fun selectAnswer(questionId: String, optionId: String) {
         val state = _uiState.value
-        if (state.isPaused || state.isFinished || state.isLoading) return
+        if (state.isPaused || state.isFinished || state.isLoading || isSubmitting) return
         if (questionId in state.revealedQuestionIds) return
 
         val question = state.questions.firstOrNull { it.id == questionId } ?: return

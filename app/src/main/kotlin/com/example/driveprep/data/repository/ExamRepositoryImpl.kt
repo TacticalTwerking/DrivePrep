@@ -10,6 +10,7 @@ import com.example.driveprep.data.local.entity.ExamRecordEntity
 import com.example.driveprep.data.local.entity.QuestionEntity
 import com.example.driveprep.data.local.entity.WrongQuestionEntity
 import com.example.driveprep.data.mapper.QuestionMapper
+import com.example.driveprep.data.offline.ImagePackRepository
 import com.example.driveprep.domain.model.ExamMode
 import com.example.driveprep.domain.model.ExamProgressData
 import com.example.driveprep.domain.model.ExamRecordData
@@ -36,7 +37,8 @@ class ExamRepositoryImpl @Inject constructor(
     private val progressDao: ExamProgressDao,
     private val recordDao: ExamRecordDao,
     private val wrongQuestionDao: WrongQuestionDao,
-    private val json: Json
+    private val json: Json,
+    private val imagePack: ImagePackRepository
 ) : ExamRepository {
 
     private val assetImportMutex = Mutex()
@@ -72,7 +74,7 @@ class ExamRepositoryImpl @Inject constructor(
             if (entities.isEmpty()) {
                 Result.failure(IllegalStateException("题库中没有科目$subject 的题目"))
             } else {
-                Result.success(QuestionMapper.toDomainList(entities))
+                Result.success(mapWithOfflineImages(entities))
             }
         } catch (e: Exception) {
             Result.failure(e)
@@ -83,7 +85,7 @@ class ExamRepositoryImpl @Inject constructor(
         if (ids.isEmpty()) return Result.success(emptyList())
         return try {
             val entities = loadQuestionEntitiesByIds(ids)
-            val questionsById = QuestionMapper.toDomainList(entities).associateBy { it.id }
+            val questionsById = mapWithOfflineImages(entities).associateBy { it.id }
             Result.success(ids.mapNotNull(questionsById::get))
         } catch (e: Exception) {
             Result.failure(e)
@@ -94,7 +96,7 @@ class ExamRepositoryImpl @Inject constructor(
         return wrongQuestionDao.getWrongQuestionsFlow().map { wrongEntities ->
             if (wrongEntities.isEmpty()) return@map emptyList()
             val questionsById = loadQuestionEntitiesByIds(wrongEntities.map { it.questionId })
-                .let(QuestionMapper::toDomainList)
+                .let { mapWithOfflineImages(it) }
                 .associateBy { it.id }
 
             wrongEntities.mapNotNull { wrong ->
@@ -114,6 +116,15 @@ class ExamRepositoryImpl @Inject constructor(
         if (ids.isEmpty()) return emptyList()
         return ids.chunked(SQLITE_MAX_VARIABLES).flatMap { chunk ->
             questionDao.getQuestionsByIds(chunk)
+        }
+    }
+
+    /** 实体转领域模型,并把已离线下载的图片替换为本地文件路径(未下载的保留原 URL) */
+    private suspend fun mapWithOfflineImages(entities: List<QuestionEntity>): List<Question> {
+        return withContext(Dispatchers.IO) {
+            QuestionMapper.toDomainList(entities).map { question ->
+                question.copy(imageUrl = imagePack.resolve(question.imageUrl) ?: question.imageUrl)
+            }
         }
     }
 
